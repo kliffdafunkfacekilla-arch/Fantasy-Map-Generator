@@ -61,8 +61,39 @@ window.HeightmapGenerator = (function () {
     });
   };
 
-  const generate = async function (graph) {
+  const fromImage = (graph, image) => {
+    return new Promise(resolve => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const {cellsX, cellsY} = graph;
+      canvas.width = cellsX;
+      canvas.height = cellsY;
+
+      const img = new Image();
+      img.src = URL.createObjectURL(image);
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, cellsX, cellsY);
+        const imageData = ctx.getImageData(0, 0, cellsX, cellsY);
+        setGraph(graph);
+        getHeightsFromImageData(imageData.data);
+        canvas.remove();
+        img.remove();
+        URL.revokeObjectURL(img.src);
+        resolve(heights);
+      };
+    });
+  };
+
+  const generate = async function (graph, {heightmapImage} = {}) {
     TIME && console.time("defineHeightmap");
+
+    if (heightmapImage) {
+      const heights = await fromImage(graph, heightmapImage);
+      TIME && console.timeEnd("defineHeightmap");
+      clearData();
+      return heights;
+    }
+
     const id = byId("templateInput").value;
 
     Math.random = aleaPRNG(seed);
