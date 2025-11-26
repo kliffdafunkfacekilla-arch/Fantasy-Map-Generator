@@ -246,12 +246,40 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   } else {
+    // Load the creation screen by default
+    const creationScreenContainer = byId("creationScreen");
+    const response = await fetch("creation-screen.html");
+    const creationScreenHtml = await response.text();
+
+    // Parse the HTML and inject only the body content
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(creationScreenHtml, "text/html");
+    const bodyContent = doc.body.innerHTML;
+    creationScreenContainer.innerHTML = bodyContent;
+    creationScreenContainer.style.display = "block"; // Make the creation screen visible
+
+    // Dynamically load and execute creation-screen.js
+    const script = document.createElement("script");
+    script.src = "modules/creation-screen.js";
+    document.body.appendChild(script);
+
     hideLoading();
-    await checkLoadParameters();
   }
   restoreDefaultEvents(); // apply default viewbox events
   initiateAutosave();
 });
+
+window.startGenerationFromCreation = async function(worldData) {
+  const creationScreen = document.getElementById("creationScreen");
+  const mainContainer = document.getElementById("main-container");
+
+  creationScreen.style.display = "none";
+  mainContainer.style.display = "block";
+
+  await generate(worldData);
+  drawLayers();
+  fitMapToScreen();
+}
 
 function hideLoading() {
   d3.select("#loading").transition().duration(3000).style("opacity", 0);
@@ -616,7 +644,7 @@ void (function addDragToUpload() {
 async function generate(options) {
   try {
     const timeStart = performance.now();
-    const {seed: precreatedSeed, graph: precreatedGraph} = options || {};
+    const {seed: precreatedSeed, graph: precreatedGraph, heightmapImage, worldName} = options || {};
 
     invokeActiveZooming();
     setSeed(precreatedSeed);
@@ -627,7 +655,7 @@ async function generate(options) {
 
     if (shouldRegenerateGrid(grid, precreatedSeed)) grid = precreatedGraph || generateGrid();
     else delete grid.cells.h;
-    grid.cells.h = await HeightmapGenerator.generate(grid);
+    grid.cells.h = await HeightmapGenerator.generate(grid, {heightmapImage});
     pack = {}; // reset pack
 
     Features.markupGrid();
@@ -645,16 +673,22 @@ async function generate(options) {
     createDefaultRuler();
 
     Rivers.generate();
-    Biomes.define();
+    Biomes.define({biomes: options.biomes});
 
     rankCells();
     Cultures.generate();
     Cultures.expand();
-    BurgsAndStates.generate();
+    BurgsAndStates.generate({
+      states: options.states,
+      cityCount: options.cityCount,
+      cityNames: options.cityNames,
+      conflictStatus: options.conflictStatus,
+      emblems: options.emblems
+    });
     Routes.generate();
-    Religions.generate();
+    Religions.generate({religions: options.religions});
     BurgsAndStates.defineStateForms();
-    Provinces.generate();
+    Provinces.generate({states: options.states});
     Provinces.getPoles();
     BurgsAndStates.defineBurgFeatures();
 
@@ -666,7 +700,7 @@ async function generate(options) {
     Zones.generate();
 
     drawScaleBar(scaleBar, scale);
-    Names.getMapName();
+    Names.getMapName(worldName);
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
     showStatistics();

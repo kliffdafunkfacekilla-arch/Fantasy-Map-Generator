@@ -137,14 +137,22 @@ window.Names = (function () {
   };
 
   // generate name for culture
-  const getCulture = function (culture, min, max, dupl) {
+  const getCulture = function (culture, min, max, dupl, cityNames) {
+    if (cityNames && cityNames.length > 0) {
+      const randomIndex = Math.floor(Math.random() * cityNames.length);
+      return cityNames.splice(randomIndex, 1)[0];
+    }
     if (culture === undefined) return ERROR && console.error("Please define a culture");
     const base = pack.cultures[culture].base;
     return getBase(base, min, max, dupl);
   };
 
   // generate short name for culture
-  const getCultureShort = function (culture) {
+  const getCultureShort = function (culture, cityNames) {
+    if (cityNames && cityNames.length > 0) {
+      const randomIndex = Math.floor(Math.random() * cityNames.length);
+      return cityNames.splice(randomIndex, 1)[0];
+    }
     if (culture === undefined) return ERROR && console.error("Please define a culture");
     return getBaseShort(pack.cultures[culture].base);
   };
@@ -238,7 +246,11 @@ window.Names = (function () {
   }
 
   // generato name for the map
-  const getMapName = function (force) {
+  const getMapName = function (worldName, force) {
+    if (worldName) {
+      mapName.value = worldName;
+      return;
+    }
     if (!force && locked("mapName")) return;
     if (force && locked("mapName")) unlock("mapName");
     const base = P(0.7) ? 2 : P(0.5) ? rand(0, 6) : rand(0, 31);
