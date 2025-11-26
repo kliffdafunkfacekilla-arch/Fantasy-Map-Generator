@@ -10,7 +10,7 @@ window.Provinces = (function () {
     Wild: {Territory: 10, Land: 5, Region: 2, Tribe: 1, Clan: 1, Dependency: 1, Area: 1}
   };
 
-  const generate = (regenerate = false, regenerateLockedStates = false) => {
+  const generate = (options, regenerate = false, regenerateLockedStates = false) => {
     TIME && console.time("generateProvinces");
     const localSeed = regenerate ? generateSeed() : seed;
     Math.random = aleaPRNG(localSeed);
@@ -51,7 +51,9 @@ window.Provinces = (function () {
         .sort((a, b) => b.population * gauss(1, 0.2, 0.5, 1.5, 3) - a.population)
         .sort((a, b) => b.capital - a.capital);
       if (stateBurgs.length < 2) return; // at least 2 provinces are required
-      const provincesNumber = Math.max(Math.ceil((stateBurgs.length * provincesRatio) / 100), 2);
+      const provincesNumber = options?.states?.[s.i - 1]?.provinces
+        ? Math.min(parseInt(options.states[s.i - 1].provinces), stateBurgs.length)
+        : Math.max(Math.ceil((stateBurgs.length * provincesRatio) / 100), 2);
 
       const form = Object.assign({}, forms[s.form]);
 

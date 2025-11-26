@@ -452,14 +452,18 @@ window.Religions = (function () {
     Heresy: () => gauss(1, 0.5, 0, 5, 1)
   };
 
-  function generate() {
+  function generate(options) {
     TIME && console.time("generateReligions");
     const lockedReligions = pack.religions?.filter(r => r.i && r.lock && !r.removed) || [];
 
     const folkReligions = generateFolkReligions();
-    const organizedReligions = generateOrganizedReligions(+religionsNumber.value, lockedReligions);
+    const organizedReligions = generateOrganizedReligions(
+      options?.religions?.length > 0 ? options.religions.length : +religionsNumber.value,
+      lockedReligions,
+      options
+    );
 
-    const namedReligions = specifyReligions([...folkReligions, ...organizedReligions]);
+    const namedReligions = specifyReligions([...folkReligions, ...organizedReligions], options);
     const indexedReligions = combineReligions(namedReligions, lockedReligions);
     const religionIds = expandReligions(indexedReligions);
     const religions = defineOrigins(religionIds, indexedReligions);
@@ -502,7 +506,10 @@ window.Religions = (function () {
       const form = rw(forms[type]);
       const cultureId = cells.culture[cellId];
 
-      return {type, form, culture: cultureId, center: cellId};
+      const religionName = options?.religions?.[index]?.name;
+      const distribution = options?.religions?.[index]?.distribution;
+
+      return {type, form, culture: cultureId, center: cellId, name: religionName, distribution};
     });
 
     function placeReligions() {
@@ -539,19 +546,19 @@ window.Religions = (function () {
     }
   }
 
-  function specifyReligions(newReligions) {
+  function specifyReligions(newReligions, options) {
     const {cells, cultures} = pack;
 
-    const rawReligions = newReligions.map(({type, form, culture: cultureId, center}) => {
+    const rawReligions = newReligions.map(({type, form, culture: cultureId, center, name: customName, distribution}) => {
       const supreme = getDeityName(cultureId);
       const deity = form === "Non-theism" || form === "Animism" ? null : supreme;
 
       const stateId = cells.state[center];
 
-      let [name, expansion] = generateReligionName(type, form, supreme, center);
+      let [name, expansion] = customName ? [customName, "global"] : generateReligionName(type, form, supreme, center);
       if (expansion === "state" && !stateId) expansion = "global";
 
-      const expansionism = expansionismMap[type]();
+      const expansionism = distribution ? distribution / 10 : expansionismMap[type]();
       const color = getReligionColor(cultures[cultureId], type);
 
       return {name, type, form, culture: cultureId, center, deity, expansion, expansionism, color};

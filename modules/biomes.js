@@ -77,8 +77,12 @@ window.Biomes = (function () {
   };
 
   // assign biome id for each cell
-  function define() {
+  function define(options) {
     TIME && console.time("defineBiomes");
+
+    if (options?.biomes?.length > 0) {
+      updateBiomesData(options.biomes);
+    }
 
     const {fl: flux, r: riverIds, h: heights, c: neighbors, g: gridReference} = pack.cells;
     const {temp, prec} = grid.cells;
@@ -122,6 +126,58 @@ window.Biomes = (function () {
     if (moisture > 40 && height < 25) return true; // near coast
     if (moisture > 24 && height > 24 && height < 60) return true; // off coast
     return false;
+  }
+
+  function updateBiomesData(customBiomes) {
+    const matrix = biomesData.biomesMartix;
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+    const totalCells = rows * cols;
+
+    customBiomes.forEach((biome, index) => {
+      const newBiomeId = biomesData.i.length;
+      biomesData.i.push(newBiomeId);
+      biomesData.name[newBiomeId] = biome.name;
+      biomesData.color[newBiomeId] = getRandomColor();
+      biomesData.habitability[newBiomeId] = 50;
+      biomesData.iconsDensity[newBiomeId] = 120;
+      biomesData.icons[newBiomeId] = [];
+      biomesData.cost[newBiomeId] = 100;
+
+      const frequency = biome.frequency / 100;
+      const numCellsToReplace = Math.floor(frequency * totalCells);
+      let replacedCount = 0;
+
+      while (replacedCount < numCellsToReplace) {
+        const startRow = Math.floor(Math.random() * rows);
+        const startCol = Math.floor(Math.random() * cols);
+        const targetBiomeId = matrix[startRow][startCol];
+
+        if (targetBiomeId >= biomesData.i.length - customBiomes.length) continue; // Avoid replacing newly added biomes
+
+        const queue = [[startRow, startCol]];
+        const visited = new Set([`${startRow},${startCol}`]);
+        let cellsToReplace = 0;
+
+        while (queue.length > 0 && cellsToReplace < numCellsToReplace - replacedCount) {
+          const [row, col] = queue.shift();
+          if (matrix[row][col] === targetBiomeId) {
+            matrix[row][col] = newBiomeId;
+            cellsToReplace++;
+
+            [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dr, dc]) => {
+              const newRow = row + dr;
+              const newCol = col + dc;
+              if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols && !visited.has(`${newRow},${newCol}`)) {
+                visited.add(`${newRow},${newCol}`);
+                queue.push([newRow, newCol]);
+              }
+            });
+          }
+        }
+        replacedCount += cellsToReplace;
+      }
+    });
   }
 
   return {getDefault, define, getId};

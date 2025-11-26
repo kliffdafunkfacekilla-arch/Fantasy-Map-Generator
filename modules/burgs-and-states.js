@@ -1,16 +1,16 @@
 "use strict";
 
 window.BurgsAndStates = (() => {
-  const generate = () => {
+  const generate = options => {
     const {cells, cultures} = pack;
     const n = cells.i.length;
 
     cells.burg = new Uint16Array(n); // cell burg
 
-    const burgs = (pack.burgs = placeCapitals());
-    pack.states = createStates();
+    const burgs = (pack.burgs = placeCapitals(options));
+    pack.states = createStates(options);
 
-    placeTowns();
+    placeTowns(options);
     expandStates();
     normalizeStates();
     getPoles();
@@ -21,11 +21,11 @@ window.BurgsAndStates = (() => {
     assignColors();
 
     generateCampaigns();
-    generateDiplomacy();
+    generateDiplomacy(options);
 
-    function placeCapitals() {
+    function placeCapitals(options) {
       TIME && console.time("placeCapitals");
-      let count = +byId("statesNumber").value;
+      let count = options?.states?.length > 0 ? options.states.length : +byId("statesNumber").value;
       let burgs = [0];
 
       const rand = () => 0.5 + Math.random() * 0.5;
@@ -69,7 +69,7 @@ window.BurgsAndStates = (() => {
     }
 
     // For each capital create a state
-    function createStates() {
+    function createStates(options) {
       TIME && console.time("createStates");
       const states = [{i: 0, name: "Neutrals"}];
       const colors = getColors(burgs.length - 1);
@@ -81,18 +81,21 @@ window.BurgsAndStates = (() => {
         // burgs data
         b.i = b.state = i;
         b.culture = cells.culture[b.cell];
-        b.name = Names.getCultureShort(b.culture);
+        b.name = Names.getCultureShort(b.culture, options.cityNames);
         b.feature = cells.f[b.cell];
         b.capital = 1;
 
         // states data
         const expansionism = rn(Math.random() * byId("sizeVariety").value + 1, 1);
+        const stateName = options?.states?.[i - 1]?.name;
         const basename = b.name.length < 9 && each5th(b.cell) ? b.name : Names.getCultureShort(b.culture);
-        const name = Names.getState(basename, b.culture);
+        const name = stateName || Names.getState(basename, b.culture);
         const type = cultures[b.culture].type;
 
-        const coa = COA.generate(null, null, null, type);
-        coa.shield = COA.getShield(b.culture, null);
+        const coa = options.emblems?.[i - 1]
+          ? {emblem: URL.createObjectURL(options.emblems[i - 1]), shield: COA.getShield(b.culture, null)}
+          : COA.generate(null, null, null, type);
+        if (!options.emblems?.[i - 1]) coa.shield = COA.getShield(b.culture, null);
         states.push({
           i,
           color: colors[i - 1],
@@ -112,7 +115,7 @@ window.BurgsAndStates = (() => {
     }
 
     // place secondary settlements based on geo and economical evaluation
-    function placeTowns() {
+    function placeTowns(options) {
       TIME && console.time("placeTowns");
       const score = new Int16Array(cells.s.map(s => s * gauss(1, 3, 0, 20, 3))); // a bit randomized cell score for towns placement
       const sorted = cells.i
@@ -120,9 +123,10 @@ window.BurgsAndStates = (() => {
         .sort((a, b) => score[b] - score[a]); // filtered and sorted array of indexes
 
       const desiredNumber =
-        manorsInput.value == 1000
+        options?.cityCount ||
+        (manorsInput.value == 1000
           ? rn(sorted.length / 5 / (grid.points.length / 10000) ** 0.8)
-          : manorsInput.valueAsNumber;
+          : manorsInput.valueAsNumber);
       const burgsNumber = Math.min(desiredNumber, sorted.length); // towns to generate
       let burgsAdded = 0;
 
@@ -138,7 +142,7 @@ window.BurgsAndStates = (() => {
           if (burgsTree.find(x, y, s) !== undefined) continue; // to close to existing burg
           const burg = burgs.length;
           const culture = cells.culture[cell];
-          const name = Names.getCulture(culture);
+          const name = Names.getCulture(culture, null, null, null, options.cityNames);
           burgs.push({cell, x, y, state: 0, i: burg, culture, name, capital: 0, feature: cells.f[cell]});
           burgsTree.add([x, y]);
           cells.burg[cell] = burg;
@@ -525,13 +529,19 @@ window.BurgsAndStates = (() => {
   };
 
   // generate Diplomatic Relationships
-  const generateDiplomacy = () => {
+  const generateDiplomacy = options => {
     TIME && console.time("generateDiplomacy");
     const {cells, states} = pack;
     const chronicle = (states[0].diplomacy = []);
     const valid = states.filter(s => s.i && !states.removed);
 
-    const neibs = {Ally: 1, Friendly: 2, Neutral: 1, Suspicion: 10, Rival: 9}; // relations to neighbors
+    let neibs = {Ally: 1, Friendly: 2, Neutral: 1, Suspicion: 10, Rival: 9}; // relations to neighbors
+    if (options?.conflictStatus === "low") {
+      neibs = {Ally: 4, Friendly: 4, Neutral: 2, Suspicion: 2, Rival: 1};
+    } else if (options?.conflictStatus === "high") {
+      neibs = {Ally: 1, Friendly: 2, Neutral: 1, Suspicion: 12, Rival: 12};
+    }
+
     const neibsOfNeibs = {Ally: 10, Friendly: 8, Neutral: 5, Suspicion: 1}; // relations to neighbors of neighbors
     const far = {Friendly: 1, Neutral: 12, Suspicion: 2, Unknown: 6}; // relations to other
     const navals = {Neutral: 1, Suspicion: 2, Rival: 1, Unknown: 1}; // relations of naval powers
