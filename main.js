@@ -256,6 +256,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const doc = parser.parseFromString(creationScreenHtml, "text/html");
     const bodyContent = doc.body.innerHTML;
     creationScreenContainer.innerHTML = bodyContent;
+    creationScreenContainer.style.display = "block"; // Make the creation screen visible
+
+    // Dynamically load and execute creation-screen.js
+    const script = document.createElement("script");
+    script.src = "modules/creation-screen.js";
+    document.body.appendChild(script);
 
     hideLoading();
   }
@@ -265,10 +271,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 window.startGenerationFromCreation = async function(worldData) {
   const creationScreen = document.getElementById("creationScreen");
-  const map = document.getElementById("map");
+  const mainContainer = document.getElementById("main-container");
 
   creationScreen.style.display = "none";
-  map.style.display = "block";
+  mainContainer.style.display = "block";
 
   await generate(worldData);
   drawLayers();
