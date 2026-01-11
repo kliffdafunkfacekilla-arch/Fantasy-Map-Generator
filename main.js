@@ -33,7 +33,7 @@ if (PRODUCTION && "serviceWorker" in navigator) {
       const Installation = await import("./modules/dynamic/installation.js?v=1.89.19");
       Installation.init(event);
     },
-    {once: true}
+    { once: true }
   );
 }
 
@@ -171,7 +171,7 @@ let viewX = 0;
 let viewY = 0;
 
 const onZoom = debounce(function () {
-  const {k, x, y} = d3.event.transform;
+  const { k, x, y } = d3.event.transform;
 
   const isScaleChanged = Boolean(scale - k);
   const isPositionChanged = Boolean(viewX - x || viewY - y);
@@ -238,7 +238,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       resizable: false,
       title: "Loading error",
       width: "28em",
-      position: {my: "center center-4em", at: "center", of: "svg"},
+      position: { my: "center center-4em", at: "center", of: "svg" },
       buttons: {
         OK: function () {
           $(this).dialog("close");
@@ -269,7 +269,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initiateAutosave();
 });
 
-window.startGenerationFromCreation = async function(worldData) {
+window.startGenerationFromCreation = async function (worldData) {
   const creationScreen = document.getElementById("creationScreen");
   const mainContainer = document.getElementById("main-container");
 
@@ -384,7 +384,7 @@ function focusOn() {
       const burg = isNaN(+burgParam) ? pack.burgs.find(burg => burg.name === burgParam) : pack.burgs[+burgParam];
       if (!burg) return;
 
-      const {x, y} = burg;
+      const { x, y } = burg;
       zoomTo(x, y, scale, 1600);
       return;
     }
@@ -535,6 +535,44 @@ function invokeActiveZooming() {
 
   // rescale labels on zoom
   if (labels.style("display") !== "none") {
+    if (!window.labelQuadtree) buildLabelQuadtree();
+
+    // Hide all first
+    labels.selectAll("g").classed("hidden", true);
+
+    const width = svgWidth;
+    const height = svgHeight;
+    const mapX0 = -viewX / scale;
+    const mapY0 = -viewY / scale;
+    const mapX1 = (width - viewX) / scale;
+    const mapY1 = (height - viewY) / scale;
+
+    window.labelQuadtree.visit((node, x0q, y0q, x1q, y1q) => {
+      if (!node.length) { // Leaf node
+        do {
+          const d = node.data;
+          // Check if point is in viewport
+          if (d.x >= mapX0 && d.x < mapX1 && d.y >= mapY0 && d.y < mapY1) {
+            const desired = d.size;
+            const relative = Math.max(rn((desired + desired / scale) / 2, 2), 1);
+            const hidden = hideLabels.checked && (relative * scale < 6 || relative * scale > 60);
+
+            if (!hidden) {
+              const el = document.getElementById(d.id);
+              if (el) {
+                el.classList.remove("hidden");
+                if (rescaleLabels.checked) el.setAttribute("font-size", relative);
+              }
+            }
+          }
+        } while (node = node.next);
+      }
+      return x0q >= mapX1 || y0q >= mapY1 || x1q < mapX0 || y1q < mapY0;
+    });
+  }
+
+  /*
+  if (labels.style("display") !== "none") {
     labels.selectAll("g").each(function () {
       if (this.id === "burgLabels") return;
       const desired = +this.dataset.size;
@@ -546,6 +584,7 @@ function invokeActiveZooming() {
       else this.classList.remove("hidden");
     });
   }
+  */
 
   // rescale emblems on zoom
   if (emblems.style("display") !== "none") {
@@ -575,7 +614,7 @@ function invokeActiveZooming() {
   // rescale map markers
   +markers.attr("rescale") &&
     pack.markers?.forEach(marker => {
-      const {i, x, y, size = 30, hidden} = marker;
+      const { i, x, y, size = 30, hidden } = marker;
       const el = !hidden && byId(`marker${i}`);
       if (!el) return;
 
@@ -620,7 +659,7 @@ void (function addDragToUpload() {
       $("#alert").dialog({
         resizable: false,
         title: "Invalid file format",
-        position: {my: "center", at: "center", of: "svg"},
+        position: { my: "center", at: "center", of: "svg" },
         buttons: {
           Close: function () {
             $(this).dialog("close");
@@ -641,10 +680,15 @@ void (function addDragToUpload() {
   });
 })();
 
+// Wrapper to let UI breathe
+const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+
+
+
 async function generate(options) {
   try {
     const timeStart = performance.now();
-    const {seed: precreatedSeed, graph: precreatedGraph, heightmapImage, worldName} = options || {};
+    const { seed: precreatedSeed, graph: precreatedGraph, heightmapImage, worldName } = options || {};
 
     invokeActiveZooming();
     setSeed(precreatedSeed);
@@ -655,27 +699,31 @@ async function generate(options) {
 
     if (shouldRegenerateGrid(grid, precreatedSeed)) grid = precreatedGraph || generateGrid();
     else delete grid.cells.h;
-    grid.cells.h = await HeightmapGenerator.generate(grid, {heightmapImage});
+    grid.cells.h = await HeightmapGenerator.generate(grid, { heightmapImage });
     pack = {}; // reset pack
 
     Features.markupGrid();
+    await tick();
     addLakesInDeepDepressions();
     openNearSeaLakes();
 
     OceanLayers();
+    await tick();
     defineMapSize();
     calculateMapCoordinates();
     calculateTemperatures();
     generatePrecipitation();
 
     reGraph();
+    await tick();
     Features.markupPack();
     createDefaultRuler();
 
     Rivers.generate();
-    Biomes.define({biomes: options.biomes});
+    Biomes.define({ biomes: options.biomes });
 
     rankCells();
+    await tick();
     Cultures.generate();
     Cultures.expand();
     BurgsAndStates.generate({
@@ -686,9 +734,9 @@ async function generate(options) {
       emblems: options.emblems
     });
     Routes.generate();
-    Religions.generate({religions: options.religions});
+    Religions.generate({ religions: options.religions });
     BurgsAndStates.defineStateForms();
-    Provinces.generate({states: options.states});
+    Provinces.generate({ states: options.states });
     Provinces.getPoles();
     BurgsAndStates.defineBurgFeatures();
 
@@ -726,7 +774,7 @@ async function generate(options) {
           $(this).dialog("close");
         }
       },
-      position: {my: "center", at: "center", of: "svg"}
+      position: { my: "center", at: "center", of: "svg" }
     });
   }
 }
@@ -753,8 +801,8 @@ function addLakesInDeepDepressions() {
   const elevationLimit = +byId("lakeElevationLimitOutput").value;
   if (elevationLimit === 80) return;
 
-  const {cells, features} = grid;
-  const {c, h, b} = cells;
+  const { cells, features } = grid;
+  const { c, h, b } = cells;
 
   for (const i of cells.i) {
     if (b[i] || h[i] < 20) continue;
@@ -802,7 +850,7 @@ function addLakesInDeepDepressions() {
       c[i].forEach(n => !lakeCells.includes(n) && (cells.t[c] = 1));
     });
 
-    features.push({i: f, land: false, border: false, type: "lake"});
+    features.push({ i: f, land: false, border: false, type: "lake" });
   }
 
   TIME && console.timeEnd("addLakesInDeepDepressions");
@@ -923,7 +971,7 @@ function calculateMapCoordinates() {
   const lonT = rn(Math.min((graphWidth / graphHeight) * latT, 360), 1);
   const lonE = rn(180 - (360 - lonT) * lonShift, 1);
   const lonW = rn(lonE - lonT, 1);
-  mapCoordinates = {latT, latN, latS, lonT, lonW, lonE};
+  mapCoordinates = { latT, latN, latS, lonT, lonW, lonE };
 }
 
 // temperature model, trying to follow real-world data
@@ -933,7 +981,7 @@ function calculateTemperatures() {
   const cells = grid.cells;
   cells.temp = new Int8Array(cells.i.length); // temperature array
 
-  const {temperatureEquator, temperatureNorthPole, temperatureSouthPole} = options;
+  const { temperatureEquator, temperatureNorthPole, temperatureSouthPole } = options;
   const tropics = [16, -20]; // tropics zone
   const tropicalGradient = 0.15;
 
@@ -980,7 +1028,7 @@ function calculateTemperatures() {
 function generatePrecipitation() {
   TIME && console.time("generatePrecipitation");
   prec.selectAll("*").remove();
-  const {cells, cellsX, cellsY} = grid;
+  const { cells, cellsX, cellsY } = grid;
   cells.prec = new Uint8Array(cells.i.length); // precipitation array
 
   const cellsNumberModifier = (pointsInput.dataset.cells / 10000) ** 0.25;
@@ -1010,7 +1058,7 @@ function generatePrecipitation() {
     const latBand = ((Math.abs(lat) - 1) / 5) | 0;
     const latMod = latitudeModifier[latBand];
     const windTier = (Math.abs(lat - 89) / 30) | 0; // 30d tiers from 0 to 5 from N to S
-    const {isWest, isEast, isNorth, isSouth} = getWindDirections(windTier);
+    const { isWest, isEast, isNorth, isSouth } = getWindDirections(windTier);
 
     if (isWest) westerly.push([c, latMod, windTier]);
     if (isEast) easterly.push([c + cellsX - 1, latMod, windTier]);
@@ -1045,7 +1093,7 @@ function generatePrecipitation() {
     const isNorth = angle > 100 && angle < 260;
     const isSouth = angle > 280 || angle < 80;
 
-    return {isWest, isEast, isNorth, isSouth};
+    return { isWest, isEast, isNorth, isSouth };
   }
 
   function passWind(source, maxPrec, next, steps) {
@@ -1142,8 +1190,8 @@ function generatePrecipitation() {
 // recalculate Voronoi Graph to pack cells
 function reGraph() {
   TIME && console.time("reGraph");
-  const {cells: gridCells, points, features} = grid;
-  const newCells = {p: [], g: [], h: []}; // store new data
+  const { cells: gridCells, points, features } = grid;
+  const newCells = { p: [], g: [], h: [] }; // store new data
   const spacing2 = grid.spacing ** 2;
 
   for (const i of gridCells.i) {
@@ -1178,14 +1226,14 @@ function reGraph() {
     newCells.h.push(height);
   }
 
-  const {cells: packCells, vertices} = calculateVoronoi(newCells.p, grid.boundary);
+  const { cells: packCells, vertices } = calculateVoronoi(newCells.p, grid.boundary);
   pack.vertices = vertices;
   pack.cells = packCells;
   pack.cells.p = newCells.p;
-  pack.cells.g = createTypedArray({maxValue: grid.points.length, from: newCells.g});
+  pack.cells.g = createTypedArray({ maxValue: grid.points.length, from: newCells.g });
   pack.cells.q = d3.quadtree(newCells.p.map(([x, y], i) => [x, y, i]));
-  pack.cells.h = createTypedArray({maxValue: 100, from: newCells.h});
-  pack.cells.area = createTypedArray({maxValue: UINT16_MAX, length: packCells.i.length}).map((_, cellId) => {
+  pack.cells.h = createTypedArray({ maxValue: 100, from: newCells.h });
+  pack.cells.area = createTypedArray({ maxValue: UINT16_MAX, length: packCells.i.length }).map((_, cellId) => {
     const area = Math.abs(d3.polygonArea(getPackPolygon(cellId)));
     return Math.min(area, UINT16_MAX);
   });
@@ -1202,7 +1250,7 @@ function isWetLand(moisture, temperature, height) {
 // assess cells suitability to calculate population and rand cells for culture center and burgs placement
 function rankCells() {
   TIME && console.time("rankCells");
-  const {cells, features} = pack;
+  const { cells, features } = pack;
   cells.s = new Int16Array(cells.i.length); // cell suitability array
   cells.pop = new Float32Array(cells.i.length); // cell population array
 
@@ -1263,7 +1311,7 @@ function showStatistics() {
     Cultures: ${pack.cultures.length - 1}`;
 
   mapId = Date.now(); // unique map id is it's creation date number
-  mapHistory.push({seed, width: graphWidth, height: graphHeight, template: heightmap, created: mapId});
+  mapHistory.push({ seed, width: graphWidth, height: graphHeight, template: heightmap, created: mapId });
   INFO && console.info(stats);
 }
 
@@ -1299,4 +1347,29 @@ function undraw() {
   byId("coas").innerHTML = ""; // remove auto-generated emblems
   notes = [];
   unfog();
+}
+
+window.buildLabelQuadtree = function () {
+  const data = [];
+  labels.selectAll("g").each(function () {
+    const transform = this.getAttribute("transform");
+    let lx = 0, ly = 0;
+    if (transform) {
+      const match = transform.match(/translate\(([\d\.-]+)[, ]([\d\.-]+)\)/);
+      if (match) { lx = +match[1]; ly = +match[2]; }
+    } else {
+      lx = +this.getAttribute("x") || 0;
+      ly = +this.getAttribute("y") || 0;
+    }
+
+    const size = +this.dataset.size || 10;
+    if (this.id !== "burgLabels") data.push({ x: lx, y: ly, size, id: this.id });
+  });
+
+  if (data.length) {
+    window.labelQuadtree = d3.quadtree()
+      .x(d => d.x)
+      .y(d => d.y)
+      .addAll(data);
+  }
 }
