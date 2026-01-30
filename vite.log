@@ -33,3 +33,10 @@
 3:09:35 AM [vite] (client) page reload engine/control/Camera.ts
 3:09:55 AM [vite] (client) page reload engine/control/Camera.ts
 3:10:16 AM [vite] (client) page reload engine/control/Camera.ts
+3:29:26 AM [vite] vite.config.ts changed, restarting server...
+3:29:27 AM [vite] server restarted.
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+3:40:37 AM [vite] vite.config.ts changed, restarting server...
+3:40:38 AM [vite] server restarted.
