@@ -220,25 +220,25 @@ oceanLayers
   .attr("height", graphHeight);
 
 document.addEventListener("DOMContentLoaded", async () => {
-  if (!location.hostname) {
-    const wiki = "https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally";
-    alertMessage.innerHTML = /* html */ `Fantasy Map Generator cannot run serverless. Follow the <a href="${wiki}" target="_blank">instructions</a> on how you can easily run a local web-server`;
+  // if (!location.hostname) {
+  //   const wiki = "https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally";
+  //   alertMessage.innerHTML = /* html */ `Fantasy Map Generator cannot run serverless. Follow the <a href="${wiki}" target="_blank">instructions</a> on how you can easily run a local web-server`;
 
-    $("#alert").dialog({
-      resizable: false,
-      title: "Loading error",
-      width: "28em",
-      position: {my: "center center-4em", at: "center", of: "svg"},
-      buttons: {
-        OK: function () {
-          $(this).dialog("close");
-        }
-      }
-    });
-  } else {
+  //   $("#alert").dialog({
+  //     resizable: false,
+  //     title: "Loading error",
+  //     width: "28em",
+  //     position: {my: "center center-4em", at: "center", of: "svg"},
+  //     buttons: {
+  //       OK: function () {
+  //         $(this).dialog("close");
+  //       }
+  //     }
+  //   });
+  // } else {
     hideLoading();
     await checkLoadParameters();
-  }
+  // }
   restoreDefaultEvents(); // apply default viewbox events
   initiateAutosave();
 });
